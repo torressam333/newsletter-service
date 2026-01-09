@@ -2,5 +2,6 @@ use newsletter_service::run;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    run().await
+    // Bubble up error if we failed to bind address
+    run()?.await
 }
