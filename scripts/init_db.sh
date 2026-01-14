@@ -33,20 +33,20 @@ fi
 
 CONTAINER_NAME="newsletter_postgres"
 
-# Override DB_PORT to avoid conflicts with local Postgres
-DB_PORT=5433
+# Override DB_PORT to avoid conflicts with local Postgres if needed
+# We use 5435 as your preferred external port
+DB_PORT=5435
 
 # ---------- Postgres Container Logic ----------
-# If SKIP_DOCKER is set, we skip the container teardown and rebuild
 if [[ -z "${SKIP_DOCKER}" ]]; then
   if docker ps -a --format '{{.Names}}' | grep -Eq "^${CONTAINER_NAME}$"; then
     echo "Removing existing Postgres container..."
     docker rm -f "${CONTAINER_NAME}"
-    # Wait a moment for port to be released
     sleep 2
   fi
 
   echo "Starting Postgres container on port ${DB_PORT}..."
+  # Note: Internal port is 5432 (default Postgres), External is 5435
   docker run \
     --env POSTGRES_USER="${POSTGRES_SUPERUSER}" \
     --env POSTGRES_PASSWORD="${POSTGRES_SUPERUSER_PWD}" \
@@ -56,13 +56,15 @@ if [[ -z "${SKIP_DOCKER}" ]]; then
     postgres -N 1000
 
   echo "Waiting for Postgres to be ready..."
-  until docker exec "${CONTAINER_NAME}" pg_isready -U "${POSTGRES_SUPERUSER}" &> /dev/null; do
+  # Added -h localhost to force TCP instead of Unix Socket
+  until docker exec "${CONTAINER_NAME}" pg_isready -h localhost -U "${POSTGRES_SUPERUSER}" &> /dev/null; do
     sleep 1
   done
 
   # ---------- Step 1: Create the User ----------
   echo "Creating app user: ${APP_USER}"
-  docker exec -i "${CONTAINER_NAME}" psql -U "${POSTGRES_SUPERUSER}" <<EOF
+  # Added -h localhost to all psql commands
+  docker exec -i "${CONTAINER_NAME}" psql -h localhost -U "${POSTGRES_SUPERUSER}" <<EOF
 DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${APP_USER}') THEN
@@ -75,7 +77,7 @@ EOF
 
   # ---------- Step 2: Create the Database ----------
   echo "Creating database: ${APP_DB}"
-  docker exec -i "${CONTAINER_NAME}" psql -U "${POSTGRES_SUPERUSER}" <<EOF
+  docker exec -i "${CONTAINER_NAME}" psql -h localhost -U "${POSTGRES_SUPERUSER}" <<EOF
 SELECT 'CREATE DATABASE ${APP_DB}'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${APP_DB}')\gexec
 ALTER DATABASE ${APP_DB} OWNER TO ${APP_USER};
@@ -84,24 +86,27 @@ EOF
 
   # Verify role exists in container
   echo "Verifying role '${APP_USER}' exists in container..."
-  ROLE_CHECK=$(docker exec "${CONTAINER_NAME}" psql -U "${POSTGRES_SUPERUSER}" -tAc "SELECT 1 FROM pg_roles WHERE rolname='${APP_USER}';")
+  ROLE_CHECK=$(docker exec "${CONTAINER_NAME}" psql -h localhost -U "${POSTGRES_SUPERUSER}" -tAc "SELECT 1 FROM pg_roles WHERE rolname='${APP_USER}';")
   if [[ "${ROLE_CHECK}" != "1" ]]; then
-    echo "Error: Role '${APP_USER}' was not created successfully in container"
+    echo "Error: Role '${APP_USER}' was not created successfully"
     exit 1
   fi
   
-  # Test connection from inside the container
+  # Test connection from inside the container via TCP
   echo "Testing connection to database '${APP_DB}' with user '${APP_USER}'..."
-  if ! docker exec "${CONTAINER_NAME}" psql -U "${APP_USER}" -d "${APP_DB}" -c "SELECT 1;" &>/dev/null; then
-    echo "Error: Cannot connect to database with app user credentials from inside container"
+  if ! docker exec "${CONTAINER_NAME}" psql -h localhost -U "${APP_USER}" -d "${APP_DB}" -c "SELECT 1;" &>/dev/null; then
+    echo "Error: Cannot connect with app user credentials from inside container"
     exit 1
   fi
 fi
 
 # ---------- Step 3: Run Migrations ----------
-export DATABASE_URL="postgres://${APP_USER}:${APP_USER_PWD}@127.0.0.1:${DB_PORT}/${APP_DB}"
+# Using 127.0.0.1 instead of localhost to bypass macOS IPv6 resolution issues
+export DATABASE_URL="postgres://${APP_USER}:${APP_USER_PWD}@127.0.0.1:${DB_PORT}/${APP_DB}?sslmode=disable"
 
-echo "Running migrations..."
+echo "Running migrations with URL: ${DATABASE_URL}"
+
+# Give the network bridge a moment to stabilize
+sleep 2
+
 sqlx migrate run
-
-echo "Database is ready and migrated."
