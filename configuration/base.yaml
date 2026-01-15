@@ -1,0 +1,5 @@
+application_port: 8000
+database:
+  host: "127.0.0.1"
+  port: 5435 # Have to use custom port...im running postgres on 5432 for anothe project :)
+  database_name: "newsletter"

@@ -18,9 +18,20 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let settings = config::Config::builder()
         // Add config values from specific config yaml file
         .add_source(config::File::new(
-            "configuration.yaml",
+            "configuration/base",
             config::FileFormat::Yaml,
         ))
+        // 2. Add "local" configuration (secrets, ignored by git)
+        // .required(false) means the app won't crash if this file is missing
+        // Differing from the book as they just push everything to VCS...tsk tsk
+        .add_source(config::File::with_name("configuration/local").required(false))
+        // 3. Add Environment Variables (The ultimate override)
+        // This allows us to set APP_DATABASE__PASSWORD in production
+        .add_source(
+            config::Environment::with_prefix("APP")
+                .prefix_separator("_")
+                .separator("__"),
+        )
         .build()?;
 
     // Try to convert the read config values into the Settings type
