@@ -24,11 +24,17 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
 
-      - name: Lint
+      # --- THE UPDATED BITS ---
+      - name: Lint (Offline Mode)
+        env:
+          SQLX_OFFLINE: true
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Test
+      - name: Test (Offline Mode)
+        env:
+          SQLX_OFFLINE: true
         run: cargo test --all
+      # ------------------------
 
       - name: Security audit
         run: |
