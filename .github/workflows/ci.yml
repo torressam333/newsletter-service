@@ -34,7 +34,11 @@ jobs:
         env:
           SQLX_OFFLINE: true
         run: cargo test --all
-      # ------------------------
+
+      - name: Verify SQLx Metadata (No Drift)
+        run: |
+          cargo install sqlx-cli --no-default-features --features postgres
+          cargo sqlx prepare --check -- --lib
 
       - name: Security audit
         run: |
