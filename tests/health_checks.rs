@@ -4,8 +4,7 @@ use std::net::TcpListener;
 
 #[tokio::test]
 async fn health_check_works() {
-    let address = spawn_app();
-
+    let address = spawn_app().await;
     let client = reqwest::Client::new();
 
     let response = client
@@ -18,11 +17,24 @@ async fn health_check_works() {
     assert_eq!(Some(0), response.content_length());
 }
 
-fn spawn_app() -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
+/*
+[BOOK DIVERGENCE]
 
+I'm diverging from the book's initial implementation here.
+I make my test setup async because initializing the database connection is an async operation.
+While it adds a tiny bit of boilerplate to each test call, it keeps the setup logic
+honest—I am performing I/O before the test starts, so the function signature should reflect that
+*/
+async fn spawn_app() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
-    let server = newsletter_service::startup::run(listener).expect("Failed to bind address");
+
+    let configuration = get_configuration().expect("Failed to read configuration.");
+    let connection = PgConnection::connect(&configuration.database.connection_string())
+        .await
+        .expect("Failed to connect to postgres");
+    let server =
+        newsletter_service::startup::run(listener, connection).expect("Failed to bind address");
 
     tokio::spawn(server);
     // Give the server a moment to start listening
@@ -33,7 +45,7 @@ fn spawn_app() -> String {
 
 #[tokio::test]
 async fn subuscribe_returns_a_200_for_valid_form_data() {
-    let app_address = spawn_app();
+    let app_address = spawn_app().await;
     let configuration = get_configuration().expect("Failed to get configuration.");
     let connection_string = configuration.database.connection_string();
 
@@ -67,7 +79,7 @@ async fn subuscribe_returns_a_200_for_valid_form_data() {
 
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
-    let app_address = spawn_app();
+    let app_address = spawn_app().await;
     let client = reqwest::Client::new();
 
     let test_cases = vec![
