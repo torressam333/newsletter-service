@@ -41,6 +41,6 @@ jobs:
           cargo sqlx prepare --check -- --lib
 
       - name: Security audit
-        run: |
-          cargo install cargo-audit
-          cargo audit
+        uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
