@@ -37,8 +37,6 @@ async fn spawn_app() -> String {
         newsletter_service::startup::run(listener, connection).expect("Failed to bind address");
 
     tokio::spawn(server);
-    // Give the server a moment to start listening
-    std::thread::sleep(std::time::Duration::from_millis(50));
 
     format!("http://127.0.0.1:{}", port)
 }
