@@ -1,5 +1,5 @@
 use newsletter_service::configuration::get_configuration;
-use sqlx::{Connection, PgConnection};
+use sqlx::PgPool;
 use std::net::TcpListener;
 
 #[tokio::test]
@@ -30,7 +30,7 @@ async fn spawn_app() -> String {
     let port = listener.local_addr().unwrap().port();
 
     let configuration = get_configuration().expect("Failed to read configuration.");
-    let connection = PgConnection::connect(&configuration.database.connection_string())
+    let connection = PgPool::connect(&configuration.database.connection_string())
         .await
         .expect("Failed to connect to postgres");
     let server =
@@ -48,7 +48,7 @@ async fn subuscribe_returns_a_200_for_valid_form_data() {
     let connection_string = configuration.database.connection_string();
 
     // We have to manually bring Connection trait into scope for pg connection to work
-    let mut connection = PgConnection::connect(&connection_string)
+    let pool = PgPool::connect(&connection_string)
         .await
         .expect("Failed to connect to Postgres DB");
 
@@ -67,7 +67,7 @@ async fn subuscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&mut connection)
+        .fetch_one(&pool)
         .await
         .expect("Failed to fetch savved subscription.");
 
