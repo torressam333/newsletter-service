@@ -18,16 +18,13 @@ pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> Ht
     'Right to be Forgotten' requests.
     */
     let request_id = Uuid::new_v4();
-    tracing::info!(
-        "Request ID {} - Adding '{}' '{}' as a new subscriber.",
-        request_id,
-        form.email,
-        form.name
-    );
-    tracing::info!(
-        "Request ID {} - Saving new subscriber to the database.",
-        request_id
-    );
+    let request_span = tracing::info_span!("Adding new subscriber.", %request_id, subscriber_email = %form.email, subscriber_name = %form.name);
+
+    // We use .instrument() or manually enter/exit, but for now, let's look at the logs:
+    let _request_span_guard = request_span.enter();
+
+    tracing::info!("Saving new subscriber to the database");
+
     match sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
@@ -43,19 +40,13 @@ pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> Ht
     .await
     {
         Ok(_) => {
-            tracing::info!(
-                "Request ID {} - New subscriber details have been saved",
-                request_id
-            );
+            tracing::info!("New subscriber details have been saved");
             HttpResponse::Ok().finish()
         }
         Err(e) => {
-            tracing::error!(
-                "Request ID {} - Failed to execute query: {:?}",
-                e,
-                request_id
-            );
+            // Recording the error as a structured field
+            tracing::error!(error = %e, "Failed to execute query");
             HttpResponse::InternalServerError().finish()
         }
     }
-}
+} // Request span gets dropped here and span is exited
