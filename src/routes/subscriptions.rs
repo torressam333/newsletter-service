@@ -18,13 +18,13 @@ pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> Ht
     'Right to be Forgotten' requests.
     */
     let request_id = Uuid::new_v4();
-    log::info!(
+    tracing::info!(
         "Request ID {} - Adding '{}' '{}' as a new subscriber.",
         request_id,
         form.email,
         form.name
     );
-    log::info!(
+    tracing::info!(
         "Request ID {} - Saving new subscriber to the database.",
         request_id
     );
@@ -43,14 +43,14 @@ pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> Ht
     .await
     {
         Ok(_) => {
-            log::info!(
+            tracing::info!(
                 "Request ID {} - New subscriber details have been saved",
                 request_id
             );
             HttpResponse::Ok().finish()
         }
         Err(e) => {
-            log::error!(
+            tracing::error!(
                 "Request ID {} - Failed to execute query: {:?}",
                 e,
                 request_id
