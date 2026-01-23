@@ -4,10 +4,14 @@ use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing::subscriber::set_global_default;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_log::LogTracer;
 use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt};
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    // Redirect all log's tracing events to our subscriber
+    LogTracer::init().expect("Failed to set logger");
+
     // Print all spans at info level or above if RUST_LOG is not set
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
