@@ -1,7 +1,15 @@
 use newsletter_service::configuration::{DatabaseSettings, get_configuration};
+use newsletter_service::telemetry::{get_subscriber, init_subscriber};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
+use std::sync::LazyLock;
 use uuid::Uuid;
+
+// Ensure tracing stack is only initialized once via LazyLock
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    let subscriber = get_subscriber("test".into(), "debug".into());
+    init_subscriber(subscriber);
+});
 
 pub struct TestApp {
     pub address: String,
@@ -32,6 +40,9 @@ While it adds a tiny bit of boilerplate to each test call, it keeps the setup lo
 honest—I am performing I/O before the test starts, so the function signature should reflect that
 */
 async fn spawn_app() -> TestApp {
+    // Telemetry setup
+    LazyLock::force(&TRACING);
+
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
     let address = format!("http://127.0.0.1:{}", port);
