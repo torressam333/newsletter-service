@@ -1,6 +1,7 @@
 use newsletter_service::configuration::get_configuration;
 use newsletter_service::startup::run;
 use newsletter_service::telemetry::{get_subscriber, init_subscriber};
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;
 
@@ -12,9 +13,10 @@ async fn main() -> Result<(), std::io::Error> {
 
     // Immediately panic if we cant read config
     let configuration = get_configuration().expect("Failed to read configuration.");
-    let connection_pool = PgPool::connect(&configuration.database.connection_string())
-        .await
-        .expect("Failed to connect to postgres");
+    let connection_pool =
+        PgPool::connect(configuration.database.connection_string().expose_secret())
+            .await
+            .expect("Failed to connect to postgres");
     let address = format!("127.0.0.1:{}", configuration.application_port);
 
     // Bubble up error if we failed to bind address
