@@ -18,7 +18,7 @@ pub struct DatabaseSettings {
 impl DatabaseSettings {
     pub fn connection_string(&self) -> SecretString {
         format!(
-            "postgres://{}:{:#?}@{}:{}/{}",
+            "postgres://{}:{}@{}:{}/{}",
             self.username,
             self.password.expose_secret(),
             self.host,
