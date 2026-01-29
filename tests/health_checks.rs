@@ -91,10 +91,18 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     .await
     .expect("Failed to connect to Postgres");
 
+    // Use the superuser to create the DB and ASSIGN ownership to the app user
     connection
-        .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
+        .execute(
+            format!(
+                r#"CREATE DATABASE "{}" OWNER {};"#,
+                config.database_name,
+                config.username // This ensures 'app' owns the new DB
+            )
+            .as_str(),
+        )
         .await
-        .expect("Faiiled to create database");
+        .expect("Failed to create database");
 
     // Migrate the db
     // Migrate the db
