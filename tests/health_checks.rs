@@ -75,6 +75,11 @@ async fn spawn_app() -> TestApp {
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
+    // 1. SECURITY FIX: Validate that the database name is a valid UUID
+    // This prevents SQL injection even though we use format!() below.
+    uuid::Uuid::parse_str(&config.database_name)
+        .expect("Security Alert: Invalid database name provided.");
+
     // Create the db using Postgres's default "maintenance db"
     let maintenance_settings = DatabaseSettings {
         database_name: "postgres".to_string(),
@@ -92,19 +97,18 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     .expect("Failed to connect to Postgres");
 
     // Use the superuser to create the DB and ASSIGN ownership to the app user
+    // and double quotes around the identifier for extra safety
     connection
         .execute(
             format!(
                 r#"CREATE DATABASE "{}" OWNER {};"#,
-                config.database_name,
-                config.username // This ensures 'app' owns the new DB
+                config.database_name, config.username
             )
             .as_str(),
         )
         .await
         .expect("Failed to create database");
 
-    // Migrate the db
     // Migrate the db
     let connection_pool = PgPool::connect(
         // Uncloak the secret at the boundary
