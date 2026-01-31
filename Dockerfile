@@ -10,6 +10,9 @@ RUN apt update && apt install lld clang -y
 # Copy all files from workiing dir to Docker Image
 COPY . .
 
+# Tell Docker to looko at saved json metadata...don't need a live DB
+ENV SQLX_OFFLINE=true
+
 # Build the binary
 RUN cargo build --release
 

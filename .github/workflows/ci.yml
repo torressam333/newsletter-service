@@ -24,7 +24,8 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
 
-      # --- THE UPDATED BITS ---
+      # --- LINT & TEST (OFFLINE) ---
+      # We use clippy first because it catches logical errors faster than a full test run.
       - name: Lint (Offline Mode)
         env:
           SQLX_OFFLINE: true
@@ -35,10 +36,13 @@ jobs:
           SQLX_OFFLINE: true
         run: cargo test --all
 
+      # --- SQLX DRIFT CHECK ...NOT IN THE BOOK ---
+      # This ensures the committed JSON matches the current code.
+      # Note: We use --no-default-features to speed up the install.
       - name: Verify SQLx Metadata (No Drift)
         run: |
-          cargo install sqlx-cli --no-default-features --features postgres
-          cargo sqlx prepare --check -- --lib
+          cargo install sqlx-cli --version="~0.8" --no-default-features --features postgres
+          cargo sqlx prepare --check -- --all-targets
 
       - name: Security audit
         uses: rustsec/audit-check@v1
