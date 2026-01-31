@@ -1,0 +1,20 @@
+# --- THE TRASH (Artifacts) ---
+target/
+
+# --- THE SECRETS (Security) ---
+.env
+**/*.pem
+**/*.key
+
+# --- THE HISTORY (Bloat) ---
+.git
+.gitignore
+
+# --- THE NOISE (OS/Editor) ---
+.DS_Store
+.vscode/
+.idea/
+tests/
+Dockerfile
+scripts/
+migrations
