@@ -12,6 +12,36 @@ pub struct ApplicationSettings {
     pub host: String,
 }
 
+pub enum Environment {
+    Local,
+    Production,
+}
+
+impl Environment {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Environment::Local => "local",
+            Environment::Production => "production",
+        }
+    }
+}
+
+impl TryFrom<String> for Environment {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "local" => Ok(Self::Local),
+            "production" => Ok(Self::Production),
+            other => Err(format!(
+                "{} is not a supported environment. \
+                Use either `local` or `production`.",
+                other
+            )),
+        }
+    }
+}
+
 #[derive(serde::Deserialize, Clone)]
 pub struct DatabaseSettings {
     pub username: String,
@@ -36,19 +66,24 @@ impl DatabaseSettings {
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
-    // Init the config yaml reader
+    let base_path = std::env::current_dir().expect("Failed to determine directory");
+    let configuration_directory = base_path.join("configuration");
+
+    let environment: Environment = std::env::var("APP_ENVIRONMENT")
+        .unwrap_or_else(|_| "local".into())
+        .try_into()
+        .expect("Failed to parse APP_ENVIRONMENT");
+
     let settings = config::Config::builder()
-        // Add config values from specific config yaml file
-        .add_source(config::File::new(
-            "configuration/base",
-            config::FileFormat::Yaml,
+        // 1. Always load base.yaml (tracked by Git, no secrets)
+        .add_source(config::File::from(
+            configuration_directory.join("base.yaml"),
         ))
-        // 2. Add "local" configuration (secrets, ignored by git)
-        // .required(false) means the app won't crash if this file is missing
-        // Differing from the book as they just push everything to VCS...tsk tsk
-        .add_source(config::File::with_name("configuration/local").required(false))
-        // 3. Add Environment Variables (The ultimate override)
-        // This allows us to set APP_DATABASE__PASSWORD in production
+        // 2. Load the environment-specific file (e.g., local.yaml or production.yaml)
+        .add_source(config::File::from(
+            configuration_directory.join(format!("{}.yaml", environment.as_str())),
+        ))
+        // 3. Add Environment Variables (The ultimate override for Docker/CI)
         .add_source(
             config::Environment::with_prefix("APP")
                 .prefix_separator("_")
@@ -56,6 +91,5 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         )
         .build()?;
 
-    // Try to convert the read config values into the Settings type
     settings.try_deserialize::<Settings>()
 }

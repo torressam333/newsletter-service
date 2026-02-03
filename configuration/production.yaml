@@ -1,0 +1,10 @@
+# configuration/production.yaml
+application:
+  host: "0.0.0.0"
+  port: 8000
+database:
+  host: "db"
+  port: 5432
+  username: "postgres"
+  database_name: "newsletter"
+  # Password is left out—we'll inject it!

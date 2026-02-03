@@ -16,5 +16,7 @@ ENV SQLX_OFFLINE=true
 # Build the binary
 RUN cargo build --release
 
+ENV APP_ENVIRONMENT=production
+
 # Once built, let's launch this puppy
 ENTRYPOINT [ "./target/release/newsletter-service" ]
