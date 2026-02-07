@@ -1,7 +1,7 @@
 use newsletter_service::configuration::{DatabaseSettings, get_configuration};
 use newsletter_service::telemetry::{get_subscriber, init_subscriber};
-use secrecy::ExposeSecret;
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sqlx::postgres::PgConnection;
+use sqlx::{Connection, Executor, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
 use uuid::Uuid;
@@ -88,10 +88,10 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         ..config.clone()
     };
 
-    let mut connection = PgConnection::connect(
+    let mut connection = PgConnection::connect_with(
         // 1. Call the method (returns SecretString)
         // 2. Expose it (returns &str)
-        maintenance_settings.connection_string().expose_secret(),
+        &maintenance_settings.connection_options(),
     )
     .await
     .expect("Failed to connect to Postgres");
@@ -110,9 +110,9 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to create database");
 
     // Migrate the db
-    let connection_pool = PgPool::connect(
+    let connection_pool = PgPool::connect_with(
         // Uncloak the secret at the boundary
-        config.connection_string().expose_secret(),
+        config.connection_options(),
     )
     .await
     .expect("Failed to connect to Postgres");
