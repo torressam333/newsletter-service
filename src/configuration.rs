@@ -1,6 +1,6 @@
 use secrecy::{ExposeSecret, SecretString};
 use serde_aux::field_attributes::deserialize_number_from_string;
-use sqlx::postgres::PgConnectOptions;
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 #[derive(serde::Deserialize)]
 pub struct Settings {
@@ -47,6 +47,8 @@ impl TryFrom<String> for Environment {
 
 #[derive(serde::Deserialize, Clone)]
 pub struct DatabaseSettings {
+    // Determine if we need the db connection to be encrypted
+    pub require_ssl: bool,
     pub username: String,
     pub password: SecretString,
     #[serde(deserialize_with = "deserialize_number_from_string")]
@@ -57,11 +59,19 @@ pub struct DatabaseSettings {
 
 impl DatabaseSettings {
     pub fn connection_options(&self) -> PgConnectOptions {
+        let ssl_mode = if self.require_ssl {
+            PgSslMode::Require
+        } else {
+            // Try enc connection or just fallback to unencr. if it fails
+            PgSslMode::Prefer
+        };
+
         PgConnectOptions::new()
             .host(&self.host)
             .username(&self.username)
             .password(self.password.expose_secret())
             .port(self.port)
+            .ssl_mode(ssl_mode)
             .database(&self.database_name)
     }
 }

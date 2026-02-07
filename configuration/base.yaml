@@ -3,3 +3,4 @@ application:
 database:
   database_name: "newsletter"
   port: 5435
+  require_ssl: false

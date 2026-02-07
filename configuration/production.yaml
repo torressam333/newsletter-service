@@ -7,4 +7,5 @@ database:
   port: 5432
   username: "postgres"
   database_name: "newsletter"
+  require_ssl: true
   # Password is left out—we'll inject it!
