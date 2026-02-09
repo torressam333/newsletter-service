@@ -8,6 +8,12 @@ pub struct NewSubscriber {
     pub name: SubscriberName,
 }
 
+impl AsRef<str> for SubscriberName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 impl SubscriberName {
     /// Returns an instance of SubscriberName if the input satisfies all our
     /// validation constraints on subscriber names otherwise it will PANIC!
@@ -26,11 +32,5 @@ impl SubscriberName {
         } else {
             Self(name)
         }
-    }
-
-    pub fn inner(self) -> String {
-        // Caller gets inner string but they dont' have SubscriberName anymore.
-        // That's b/c inner takes 'self' by value consumin git according to move semantics
-        self.0
     }
 }
