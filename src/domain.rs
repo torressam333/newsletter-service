@@ -17,7 +17,7 @@ impl AsRef<str> for SubscriberName {
 impl SubscriberName {
     /// Returns an instance of SubscriberName if the input satisfies all our
     /// validation constraints on subscriber names otherwise it will PANIC!
-    pub fn parse(name: String) -> SubscriberName {
+    pub fn parse(name: String) -> Result<SubscriberName, String> {
         let is_empty_or_whitespace = name.trim().is_empty();
 
         // Some chars are actually composed of multiple bytes
@@ -30,7 +30,7 @@ impl SubscriberName {
         if is_empty_or_whitespace || is_too_long || contains_forbidden_chars {
             panic!("{} is not a valid subscriber name", name);
         } else {
-            Self(name)
+            Ok(Self(name))
         }
     }
 }
