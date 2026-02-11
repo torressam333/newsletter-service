@@ -189,7 +189,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
     let test_cases = vec![
         ("name=&email=sam_torres%gmail.com", "empty name"),
         ("name=Sam&email=", "empty email"),
-        ("name=Sam&email=definitely-not-an-email", "iinvalid email"),
+        ("name=Sam&email=definitely-not-an-email", "invalid email"),
     ];
 
     for (body, description) in test_cases {

@@ -28,10 +28,15 @@ pub struct FormData {
 )]
 // Subscribe is the route handler called in startup.rs. The entry point for this endpoint.
 pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> HttpResponse {
+    let name = match SubscriberName::parse(form.0.name) {
+        Ok(name) => name,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
+
     // 0 gives us access to FormData coming from the web::Form wrapper
     let new_subscriber = NewSubscriber {
         email: form.0.email,
-        name: SubscriberName::parse(form.0.name).expect("Name validation failed."),
+        name,
     };
 
     match insert_subscriber(&pool, &new_subscriber).await {
