@@ -11,6 +11,13 @@ pub struct FormData {
     pub name: String,
 }
 
+pub fn parse_subscriber(form: FormData) -> Result<NewSubscriber, String> {
+    let name = SubscriberName::parse(form.name)?;
+    let email = SubscriberEmail::parse(form.email)?;
+
+    Ok(NewSubscriber { email, name })
+}
+
 /* DEV NOTE: PII & Compliance (GDPR/CCPA)
     We are logging email and name here for debugging purposes.
     In a high compliance production environment, this should be avoided
@@ -28,18 +35,11 @@ pub struct FormData {
 )]
 // Subscribe is the route handler called in startup.rs. The entry point for this endpoint.
 pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> HttpResponse {
-    let name = match SubscriberName::parse(form.0.name) {
-        Ok(name) => name,
-        Err(_) => return HttpResponse::BadRequest().finish(),
-    };
-
-    let email = match SubscriberEmail::parse(form.0.email) {
-        Ok(email) => email,
-        Err(_) => return HttpResponse::BadRequest().finish(),
-    };
-
     // 0 gives us access to FormData coming from the web::Form wrapper
-    let new_subscriber = NewSubscriber { email, name };
+    let new_subscriber = match parse_subscriber(form.0) {
+        Ok(subscriber) => subscriber,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
 
     match insert_subscriber(&pool, &new_subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
