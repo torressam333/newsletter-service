@@ -11,7 +11,7 @@ impl AsRef<str> for SubscriberName {
 }
 
 impl SubscriberName {
-    /// Returns an instance of SubscriberName if the input satisfies all our
+    /// Returns an instance of SubscriberName if the input satisfies all the
     /// validation constraints on subscriber names otherwise it will PANIC!
     pub fn parse(name: String) -> Result<SubscriberName, String> {
         let is_empty_or_whitespace = name.trim().is_empty();
