@@ -4,3 +4,6 @@ database:
   database_name: "newsletter"
   port: 5435
   require_ssl: false
+email_client:
+  base_url: "127.0.0.1"
+  sender_email: "test@gmail.com"

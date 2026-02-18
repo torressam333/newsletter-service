@@ -9,3 +9,5 @@ database:
   database_name: "newsletter"
   require_ssl: true
   # Password is left out—we'll inject it!
+email_client:
+  base_url:

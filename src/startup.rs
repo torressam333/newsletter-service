@@ -1,3 +1,4 @@
+use crate::email_client::{self, EmailClient};
 use crate::routes::{health_check, subscribe};
 use actix_web::dev::Server;
 use actix_web::{App, HttpServer, web};
@@ -5,9 +6,14 @@ use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
-pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Error> {
+pub fn run(
+    listener: TcpListener,
+    db_pool: PgPool,
+    email_client: EmailClient,
+) -> Result<Server, std::io::Error> {
     // Wrap the DB db_pool in a smart pointer
     let db_pool = web::Data::new(db_pool);
+    let email_client = web::Data::new(email_client);
 
     let server = HttpServer::new(move || {
         App::new()
@@ -16,6 +22,7 @@ pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Er
             .route("/subscriptions", web::post().to(subscribe))
             // Get a pointer copy and attach to the app's state
             .app_data(db_pool.clone())
+            .app_data(email_client.clone())
     })
     .listen(listener)?
     .run();
