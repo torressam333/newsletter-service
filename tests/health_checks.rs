@@ -1,4 +1,5 @@
 use newsletter_service::configuration::{DatabaseSettings, get_configuration};
+use newsletter_service::email_client::EmailClient;
 use newsletter_service::telemetry::{get_subscriber, init_subscriber};
 use sqlx::postgres::PgConnection;
 use sqlx::{Connection, Executor, PgPool};
@@ -63,7 +64,15 @@ async fn spawn_app() -> TestApp {
 
     let connection_pool = configure_database(&configuration.database).await;
 
-    let server = newsletter_service::startup::run(listener, connection_pool.clone())
+    // Build the email client using config
+    let sender_email = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address");
+
+    let email_client = EmailClient::new(configuration.email_client.base_url, sender_email);
+
+    let server = newsletter_service::startup::run(listener, connection_pool.clone(), email_client)
         .expect("Failed to bind address");
 
     tokio::spawn(server);
