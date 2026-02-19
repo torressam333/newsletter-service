@@ -9,5 +9,10 @@ database:
   database_name: "newsletter"
   require_ssl: true
   # Password is left out—we'll inject it!
+# production.yaml
 email_client:
-  base_url:
+  base_url: "https://live.api.mailtrap.io" # Or Brevo/Postmark URL
+  sender_email: "sam.torres@me.com"
+  timeout_milliseconds: 5000 # Faster timeout for production
+  # authorization_token is OMITTED here because we
+  # will inject it via APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN
