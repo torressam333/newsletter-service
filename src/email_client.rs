@@ -40,7 +40,11 @@ impl EmailClient {
         html_content: &str,
         text_content: &str,
     ) -> Result<(), reqwest::Error> {
-        let url = format!("{}/api/send/4390866", self.base_url);
+        let url = self
+            .base_url
+            .join("api/send/4390866")
+            .expect("Failed to join base URL with Mailtrap path");
+
         let request_body = SendEmailRequest {
             from: self.sender.as_ref().to_owned(),
             to: recipient.as_ref().to_owned(),
@@ -50,7 +54,7 @@ impl EmailClient {
         };
 
         self.http_client
-            .post(&url)
+            .post(url)
             // EXPOSE the secret only at the point of usage
             .header(
                 "Authorization",
@@ -73,7 +77,7 @@ mod tests {
     use fake::faker::lorem::en::{Paragraph, Sentence};
     use fake::{Fake, Faker};
     use secrecy::SecretString;
-    use wiremock::matchers::any;
+    use wiremock::matchers::{header, header_exists, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
@@ -88,7 +92,9 @@ mod tests {
         let email_client =
             EmailClient::new(base_url, sender, SecretString::new(secret_data.into()));
 
-        Mock::given(any())
+        Mock::given(header_exists("Authorization"))
+            .and(header("Content-Type", "application/json"))
+            .and(path("/api/send/4390866"))
             .respond_with(ResponseTemplate::new(200))
             .expect(1) // Should receive exactly 1 req set by the mock.
             .mount(&mock_server)
