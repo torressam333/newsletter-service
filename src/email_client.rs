@@ -1,12 +1,13 @@
 use crate::domain::SubscriberEmail;
 use reqwest::Client;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 
 pub struct EmailClient {
     http_client: Client,
     base_url: reqwest::Url,
     sender: SubscriberEmail,
-    authorization_token: SecretString,
+    // This will be populated from APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN
+    pub authorization_token: SecretString,
 }
 
 #[derive(serde::Serialize)]
@@ -38,7 +39,7 @@ impl EmailClient {
         subject: &str,
         html_content: &str,
         text_content: &str,
-    ) -> Result<(), String> {
+    ) -> Result<(), reqwest::Error> {
         let url = format!("{}/api/send/4390866", self.base_url);
         let request_body = SendEmailRequest {
             from: self.sender.as_ref().to_owned(),
@@ -48,7 +49,17 @@ impl EmailClient {
             text_content: text_content.to_owned(),
         };
 
-        let builder = self.http_client.post(&url).json(&request_body);
+        self.http_client
+            .post(&url)
+            // EXPOSE the secret only at the point of usage
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.authorization_token.expose_secret()),
+            )
+            .json(&request_body)
+            .send() // <--- Don't forget to send!
+            .await?
+            .error_for_status()?;
 
         Ok(())
     }
@@ -87,6 +98,9 @@ mod tests {
         let subject: String = Sentence(1..2).fake();
         let content: String = Paragraph(1..10).fake();
 
-        let _ = email_client.send_email(subscriber_email, &subject, &content, &content);
+        email_client
+            .send_email(subscriber_email, &subject, &content, &content)
+            .await
+            .expect("Failed to send email");
     }
 }
