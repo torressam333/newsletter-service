@@ -11,6 +11,7 @@ pub struct EmailClient {
 }
 
 #[derive(serde::Serialize)]
+#[serde(rename_all = "PascalCase")]
 struct SendEmailRequest {
     from: String,
     to: String,
@@ -77,8 +78,32 @@ mod tests {
     use fake::faker::lorem::en::{Paragraph, Sentence};
     use fake::{Fake, Faker};
     use secrecy::SecretString;
+    use wiremock::Request;
     use wiremock::matchers::{header, header_exists, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    // Custom impl for checking body of req during tests
+    struct SendEmailBodyMatcher;
+
+    impl wiremock::Match for SendEmailBodyMatcher {
+        fn matches(&self, request: &Request) -> bool {
+            // Try to parse body as JSON value
+            let result: Result<serde_json::Value, _> = serde_json::from_slice(&request.body);
+
+            if let Ok(body) = result {
+                dbg!(&body);
+                // Check that all mandatory fields ar populated w/o inspecting
+                body.get("From").is_some()
+                    && body.get("To").is_some()
+                    && body.get("Subject").is_some()
+                    && body.get("HtmlContent").is_some()
+                    && body.get("TextContent").is_some()
+            } else {
+                // Req doesnt match, failed parsing
+                false
+            }
+        }
+    }
 
     #[tokio::test]
     async fn send_email_fires_a_request_to_base_url() {
@@ -95,6 +120,7 @@ mod tests {
         Mock::given(header_exists("Authorization"))
             .and(header("Content-Type", "application/json"))
             .and(path("/api/send/4390866"))
+            .and(SendEmailBodyMatcher)
             .respond_with(ResponseTemplate::new(200))
             .expect(1) // Should receive exactly 1 req set by the mock.
             .mount(&mock_server)
