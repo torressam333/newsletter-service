@@ -13,6 +13,7 @@ database:
 email_client:
   base_url: "https://live.api.mailtrap.io" # Or Brevo/Postmark URL
   sender_email: "sam.torres@me.com"
+  mailtrap_account_id: "4390866" # Will be diff for prod instance if I go live with this
   timeout_milliseconds: 5000 # Faster timeout for production
   # authorization_token is OMITTED here because we
   # will inject it via APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN

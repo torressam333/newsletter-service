@@ -30,6 +30,7 @@ async fn main() -> Result<(), std::io::Error> {
         formatted_url,
         sender_email,
         configuration.email_client.authorization_token,
+        configuration.email_client.mailtrap_account_id,
     );
 
     // Configure server address

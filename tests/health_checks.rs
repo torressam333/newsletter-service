@@ -77,6 +77,7 @@ async fn spawn_app() -> TestApp {
         formatted_url,
         sender_email,
         configuration.email_client.authorization_token,
+        configuration.email_client.mailtrap_account_id,
     );
 
     let server = newsletter_service::startup::run(listener, connection_pool.clone(), email_client)

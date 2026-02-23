@@ -8,16 +8,17 @@ pub struct EmailClient {
     sender: SubscriberEmail,
     // This will be populated from APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN
     pub authorization_token: SecretString,
+    mailtrap_account_id: String,
 }
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "PascalCase")]
-struct SendEmailRequest {
-    from: String,
-    to: String,
-    subject: String,
-    html_content: String,
-    text_content: String,
+struct SendEmailRequest<'a> {
+    from: &'a str,
+    to: &'a str,
+    subject: &'a str,
+    html_content: &'a str,
+    text_content: &'a str,
 }
 
 impl EmailClient {
@@ -25,12 +26,14 @@ impl EmailClient {
         base_url: reqwest::Url,
         sender: SubscriberEmail,
         authorization_token: SecretString,
+        mailtrap_account_id: String,
     ) -> Self {
         Self {
             http_client: Client::new(),
             base_url,
             sender,
             authorization_token,
+            mailtrap_account_id,
         }
     }
 
@@ -41,17 +44,19 @@ impl EmailClient {
         html_content: &str,
         text_content: &str,
     ) -> Result<(), reqwest::Error> {
+        let path = format!("api/send/{}", self.mailtrap_account_id);
+
         let url = self
             .base_url
-            .join("api/send/4390866")
-            .expect("Failed to join base URL with Mailtrap path");
+            .join(&path)
+            .expect("Failed to join base URL with dynamic Mailtrap path");
 
         let request_body = SendEmailRequest {
-            from: self.sender.as_ref().to_owned(),
-            to: recipient.as_ref().to_owned(),
-            subject: subject.to_owned(),
-            html_content: html_content.to_owned(),
-            text_content: text_content.to_owned(),
+            from: self.sender.as_ref(),
+            to: recipient.as_ref(),
+            subject,
+            html_content,
+            text_content,
         };
 
         self.http_client
@@ -112,14 +117,19 @@ mod tests {
         let base_url =
             reqwest::Url::parse(&mock_server.uri()).expect("Failed to parse mock server tab URI");
         let secret_data: String = Faker.fake();
+        let account_id: String = Faker.fake();
 
         // Into will convert String to expected Box<str> expected by SS::new()
-        let email_client =
-            EmailClient::new(base_url, sender, SecretString::new(secret_data.into()));
+        let email_client = EmailClient::new(
+            base_url,
+            sender,
+            SecretString::new(secret_data.into()),
+            account_id.clone(),
+        );
 
         Mock::given(header_exists("Authorization"))
             .and(header("Content-Type", "application/json"))
-            .and(path("/api/send/4390866"))
+            .and(path(format!("/api/send/{}", account_id)))
             .and(SendEmailBodyMatcher)
             .respond_with(ResponseTemplate::new(200))
             .expect(1) // Should receive exactly 1 req set by the mock.

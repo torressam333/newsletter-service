@@ -15,6 +15,7 @@ pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
     pub authorization_token: SecretString,
+    pub mailtrap_account_id: String,
 }
 
 impl EmailClientSettings {

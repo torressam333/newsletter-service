@@ -8,3 +8,4 @@ email_client:
   base_url: "127.0.0.1"
   sender_email: "test@gmail.com"
   authorization_token: "test-token"
+  mailtrap_account_id: "4390866"
