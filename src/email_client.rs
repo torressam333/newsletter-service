@@ -117,57 +117,65 @@ mod tests {
         }
     }
 
+    // Add some helpers to reduce code dupe...It's important to remain DRY
+
+    // Random email subject
+    fn subject() -> String {
+        Sentence(1..2).fake()
+    }
+
+    // Random email content
+    fn content() -> String {
+        Paragraph(1..10).fake()
+    }
+
+    // Random subscriber email
+    fn email() -> SubscriberEmail {
+        SubscriberEmail::parse(SafeEmail().fake()).unwrap()
+    }
+
+    /// Get a test instance of `EmailClient`
+    fn email_client(base_url: reqwest::Url, account_id: String) -> EmailClient {
+        EmailClient::new(
+            base_url,
+            email(),
+            SecretString::new(Faker.fake::<String>().into()),
+            account_id, // Moves the String in
+        )
+    }
+
     #[tokio::test]
     async fn send_email_sends_the_expected_request() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let base_url =
-            reqwest::Url::parse(&mock_server.uri()).expect("Failed to parse mock server tab URI");
-        let secret_data: String = Faker.fake();
-        let account_id: String = Faker.fake();
+        let account_id: String = Faker.fake(); // Born here
+        let base_url = reqwest::Url::parse(&mock_server.uri()).unwrap();
 
-        // Into will convert String to expected Box<str> expected by SS::new()
-        let email_client = EmailClient::new(
-            base_url,
-            sender,
-            SecretString::new(secret_data.into()),
-            account_id.clone(),
-        );
+        // Pass a CLONE to the helper because we need the original
+        // account_id later for the Mock path!
+        let email_client = email_client(base_url, account_id.clone());
 
         Mock::given(header_exists("Authorization"))
             .and(header("Content-Type", "application/json"))
             .and(path(format!("/api/send/{}", account_id)))
             .and(SendEmailBodyMatcher)
             .respond_with(ResponseTemplate::new(200))
-            .expect(1) // Should receive exactly 1 req set by the mock.
+            .expect(1)
             .mount(&mock_server)
             .await;
 
-        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let subject: String = Sentence(1..2).fake();
-        let content: String = Paragraph(1..10).fake();
+        let outcome = email_client
+            .send_email(email(), &subject(), &content(), &content())
+            .await;
 
-        email_client
-            .send_email(subscriber_email, &subject, &content, &content)
-            .await
-            .expect("Failed to send email");
+        assert_ok!(outcome);
     }
 
     #[tokio::test]
     async fn send_email_succeeds_if_the_server_returns_200() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let account_id: String = Faker.fake();
-        let secret_data: String = Faker.fake();
-        let base_url =
-            reqwest::Url::parse(&mock_server.uri()).expect("Failed to parse mock server tab URI");
-
-        let email_client = EmailClient::new(
-            base_url,
-            sender,
-            SecretString::new(secret_data.into()),
-            account_id.clone(),
-        );
+        let account_id: String = Faker.fake(); // Born here
+        let base_url = reqwest::Url::parse(&mock_server.uri()).unwrap();
+        let email_client = email_client(base_url, account_id.clone());
 
         let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let subject: String = Sentence(1..2).fake();
@@ -189,18 +197,9 @@ mod tests {
     #[tokio::test]
     async fn send_email_fails_if_the_server_returns_500() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let account_id: String = Faker.fake();
-        let secret_data: String = Faker.fake();
-        let base_url =
-            reqwest::Url::parse(&mock_server.uri()).expect("Failed to parse mock server tab URI");
-
-        let email_client = EmailClient::new(
-            base_url,
-            sender,
-            SecretString::new(secret_data.into()),
-            account_id.clone(),
-        );
+        let account_id: String = Faker.fake(); // Born here
+        let base_url = reqwest::Url::parse(&mock_server.uri()).unwrap();
+        let email_client = email_client(base_url, account_id.clone());
 
         let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let subject: String = Sentence(1..2).fake();
@@ -222,18 +221,9 @@ mod tests {
     #[tokio::test]
     async fn send_email_times_out_if_server_takes_too_long() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let account_id: String = Faker.fake();
-        let secret_data: String = Faker.fake();
-        let base_url =
-            reqwest::Url::parse(&mock_server.uri()).expect("Failed to parse mock server tab URI");
-
-        let email_client = EmailClient::new(
-            base_url,
-            sender,
-            SecretString::new(secret_data.into()),
-            account_id.clone(),
-        );
+        let account_id: String = Faker.fake(); // Born here
+        let base_url = reqwest::Url::parse(&mock_server.uri()).unwrap();
+        let email_client = email_client(base_url, account_id.clone());
 
         let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let subject: String = Sentence(1..2).fake();
