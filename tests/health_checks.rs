@@ -73,11 +73,14 @@ async fn spawn_app() -> TestApp {
     let formatted_url = reqwest::Url::parse(&configuration.email_client.base_url)
         .expect("Failed to parse base url");
 
+    let timeout = configuration.email_client.timeout();
+
     let email_client = EmailClient::new(
         formatted_url,
         sender_email,
         configuration.email_client.authorization_token,
         configuration.email_client.mailtrap_account_id,
+        timeout,
     );
 
     let server = newsletter_service::startup::run(listener, connection_pool.clone(), email_client)

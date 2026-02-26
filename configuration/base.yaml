@@ -9,3 +9,4 @@ email_client:
   sender_email: "test@gmail.com"
   authorization_token: "test-token"
   mailtrap_account_id: "4390866"
+  timeout_milliseconds: 10000

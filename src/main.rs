@@ -26,11 +26,14 @@ async fn main() -> Result<(), std::io::Error> {
     let formatted_url = reqwest::Url::parse(&configuration.email_client.base_url)
         .expect("Failed to parse base url");
 
+    let timeout = configuration.email_client.timeout();
+
     let email_client = EmailClient::new(
         formatted_url,
         sender_email,
         configuration.email_client.authorization_token,
         configuration.email_client.mailtrap_account_id,
+        timeout,
     );
 
     // Configure server address

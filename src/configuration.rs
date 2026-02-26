@@ -16,11 +16,16 @@ pub struct EmailClientSettings {
     pub sender_email: String,
     pub authorization_token: SecretString,
     pub mailtrap_account_id: String,
+    timeout_milliseconds: u64,
 }
 
 impl EmailClientSettings {
     pub fn sender(&self) -> Result<SubscriberEmail, String> {
         SubscriberEmail::parse(self.sender_email.clone())
+    }
+
+    pub fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.timeout_milliseconds)
     }
 }
 

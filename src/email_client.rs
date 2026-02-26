@@ -27,11 +27,9 @@ impl EmailClient {
         sender: SubscriberEmail,
         authorization_token: SecretString,
         mailtrap_account_id: String,
+        timeout: std::time::Duration,
     ) -> Self {
-        let http_client = Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
-            .build()
-            .unwrap();
+        let http_client = Client::builder().timeout(timeout).build().unwrap();
 
         Self {
             http_client,
@@ -140,7 +138,8 @@ mod tests {
             base_url,
             email(),
             SecretString::new(Faker.fake::<String>().into()),
-            account_id, // Moves the String in
+            account_id,                         // Moves the String in
+            std::time::Duration::from_secs(10), // Senssible defailt for the tests suite
         )
     }
 
@@ -223,14 +222,22 @@ mod tests {
         let mock_server = MockServer::start().await;
         let account_id: String = Faker.fake(); // Born here
         let base_url = reqwest::Url::parse(&mock_server.uri()).unwrap();
-        let email_client = email_client(base_url, account_id.clone());
+
+        // Deviate from book - it just lets the suite hang for 10 seconds. I changed to use configuration in the struct instead
+        let email_client = EmailClient::new(
+            base_url,
+            email(),
+            SecretString::new(Faker.fake::<String>().into()),
+            account_id,
+            std::time::Duration::from_millis(50), // Client only waits 50ms
+        );
 
         let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let subject: String = Sentence(1..2).fake();
         let content: String = Paragraph(1..10).fake();
 
-        // 3 min delay, that's forever in internet time lol
-        let response = ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(180));
+        // 200ms delay, dont bottle neck the test suite
+        let response = ResponseTemplate::new(200).set_delay(std::time::Duration::from_millis(200));
 
         Mock::given(any())
             .respond_with(response)
