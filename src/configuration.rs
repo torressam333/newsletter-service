@@ -10,13 +10,13 @@ pub struct Settings {
     pub email_client: EmailClientSettings,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
     pub authorization_token: SecretString,
     pub mailtrap_account_id: String,
-    timeout_milliseconds: u64,
+    pub timeout_milliseconds: u64,
 }
 
 impl EmailClientSettings {
