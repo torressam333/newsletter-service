@@ -1,9 +1,9 @@
 use newsletter_service::configuration::{DatabaseSettings, get_configuration};
-use newsletter_service::email_client::EmailClient;
+use newsletter_service::startup::Application;
+use newsletter_service::startup::get_connection_pool;
 use newsletter_service::telemetry::{get_subscriber, init_subscriber};
 use sqlx::postgres::PgConnection;
 use sqlx::{Connection, Executor, PgPool};
-use std::net::TcpListener;
 use std::sync::LazyLock;
 use uuid::Uuid;
 
@@ -27,55 +27,34 @@ pub struct TestApp {
     pub db_pool: PgPool,
 }
 
-/*
-[BOOK DIVERGENCE]
-
-I'm diverging from the book's initial implementation here.
-I make my test setup async because initializing the database connection is an async operation.
-While it adds a tiny bit of boilerplate to each test call, it keeps the setup logic
-honest—I am performing I/O before the test starts, so the function signature should reflect that
-*/
 pub async fn spawn_app() -> TestApp {
-    // Telemetry setup
     LazyLock::force(&TRACING);
 
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
-    let port = listener.local_addr().unwrap().port();
-    let address = format!("http://127.0.0.1:{}", port);
+    let configuration = {
+        let mut con = get_configuration().expect("Failed to read config.");
+        con.database.database_name = Uuid::new_v4().to_string();
+        con.application.port = 0;
+        con
+    };
 
-    let mut configuration = get_configuration().expect("Failed to read configuration.");
-    // Randomize db name to move test runs into isolation from each other.
-    configuration.database.database_name = Uuid::new_v4().to_string();
+    // 1. PROVISION: This MUST happen first.
+    // It creates the DB and runs migrations so the tables actually exist.
+    configure_database(&configuration.database).await;
 
-    let connection_pool = configure_database(&configuration.database).await;
+    // 2. BUILD APP: This calls get_connection_pool internally (via Application::build)
+    let application = Application::build(configuration.clone())
+        .await
+        .expect("Failed to build application instance");
 
-    // Build the email client using config
-    let sender_email = configuration
-        .email_client
-        .sender()
-        .expect("Invalid sender email address");
+    let address = format!("http://127.0.0.1:{}", application.port());
 
-    let formatted_url = reqwest::Url::parse(&configuration.email_client.base_url)
-        .expect("Failed to parse base url");
+    tokio::spawn(application.run_until_stopped());
 
-    let timeout = configuration.email_client.timeout();
-
-    let email_client = EmailClient::new(
-        formatted_url,
-        sender_email,
-        configuration.email_client.authorization_token,
-        configuration.email_client.mailtrap_account_id,
-        timeout,
-    );
-
-    let server = newsletter_service::startup::run(listener, connection_pool.clone(), email_client)
-        .expect("Failed to bind address");
-
-    tokio::spawn(server);
-
+    // 3. TEST POOL: Now it's safe to call get_connection_pool for the test logic
+    // because step #1 guaranteed the database and tables are ready.
     TestApp {
         address,
-        db_pool: connection_pool,
+        db_pool: get_connection_pool(&configuration.database),
     }
 }
 
