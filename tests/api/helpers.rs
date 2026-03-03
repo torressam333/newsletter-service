@@ -25,11 +25,12 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    pub http_client: reqwest::Client,
 }
 
 impl TestApp {
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
-        reqwest::Client::new()
+        self.http_client // Use the single created client not a new one for every test run. TCP burnout otherwise
             .post(format!("{}/subscriptions", &self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
@@ -62,11 +63,15 @@ pub async fn spawn_app() -> TestApp {
 
     tokio::spawn(application.run_until_stopped());
 
+    // Create the client once
+    let http_client = reqwest::Client::new();
+
     // 3. TEST POOL: Now it's safe to call get_connection_pool for the test logic
     // because step #1 guaranteed the database and tables are ready.
     TestApp {
         address,
         db_pool: get_connection_pool(&configuration.database),
+        http_client,
     }
 }
 
