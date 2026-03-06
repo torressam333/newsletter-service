@@ -6,6 +6,7 @@ use sqlx::postgres::PgConnection;
 use sqlx::{Connection, Executor, PgPool};
 use std::sync::LazyLock;
 use uuid::Uuid;
+use wiremock::MockServer;
 
 // Ensure tracing stack is only initialized once via LazyLock
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -26,6 +27,7 @@ pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
     pub http_client: reqwest::Client,
+    pub email_server: MockServer,
 }
 
 impl TestApp {
@@ -42,6 +44,9 @@ impl TestApp {
 
 pub async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
+
+    // Launch a mock server for now to stand in for mailtrap
+    let email_server = MockServer::start().await;
 
     let configuration = {
         let mut con = get_configuration().expect("Failed to read config.");
@@ -72,6 +77,7 @@ pub async fn spawn_app() -> TestApp {
         address,
         db_pool: get_connection_pool(&configuration.database),
         http_client,
+        email_server,
     }
 }
 

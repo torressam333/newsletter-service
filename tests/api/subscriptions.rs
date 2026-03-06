@@ -1,4 +1,6 @@
 use crate::helpers::spawn_app;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, ResponseTemplate};
 
 #[tokio::test]
 async fn subuscribe_returns_a_200_for_valid_form_data() {
@@ -61,3 +63,6 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
         );
     }
 }
+
+#[tokio::test]
+async fn subscribe_sends_a_confirmation_email_for_valid_data() {}
