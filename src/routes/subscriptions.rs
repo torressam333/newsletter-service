@@ -1,4 +1,5 @@
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+use crate::email_client::EmailClient;
 use actix_web::{HttpResponse, web};
 use chrono::Utc;
 use sqlx::PgPool;
@@ -38,17 +39,36 @@ impl TryFrom<FormData> for NewSubscriber {
     )
 )]
 // Subscribe is the route handler called in startup.rs. The entry point for this endpoint.
-pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> HttpResponse {
+pub async fn subscribe(
+    form: web::Form<FormData>,
+    pool: web::Data<PgPool>,
+    // From the app context
+    email_client: web::Data<EmailClient>,
+) -> HttpResponse {
     // 0 gives us access to FormData coming from the web::Form wrapper
     let new_subscriber = match form.0.try_into() {
         Ok(subscriber) => subscriber,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    match insert_subscriber(&pool, &new_subscriber).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+    if insert_subscriber(&pool, &new_subscriber).await.is_err() {
+        return HttpResponse::InternalServerError().finish();
     }
+
+    if email_client
+        .send_email(
+            new_subscriber.email,
+            "Subject: Welcome",
+            "Welcome to news letter",
+            "Welcome to news letter",
+        )
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
+    }
+
+    HttpResponse::Ok().finish()
 } // Request span gets dropped here and span is exited
 
 /// Returns true if input satisfies all validationo for name field

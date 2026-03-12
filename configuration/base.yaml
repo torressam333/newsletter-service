@@ -8,5 +8,5 @@ email_client:
   base_url: "127.0.0.1"
   sender_email: "test@gmail.com"
   authorization_token: "test-token"
-  mailtrap_account_id: "4390866"
+  mailtrap_account_id: "4443384"
   timeout_milliseconds: 10000

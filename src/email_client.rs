@@ -2,11 +2,12 @@ use crate::domain::SubscriberEmail;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 
+#[derive(Debug)]
 pub struct EmailClient {
     http_client: Client,
     base_url: reqwest::Url,
     sender: SubscriberEmail,
-    // This will be populated from APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN
+    // This will be populated from APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN fron env
     pub authorization_token: SecretString,
     mailtrap_account_id: String,
 }
