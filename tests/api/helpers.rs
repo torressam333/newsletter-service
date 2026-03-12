@@ -52,6 +52,8 @@ pub async fn spawn_app() -> TestApp {
         let mut con = get_configuration().expect("Failed to read config.");
         con.database.database_name = Uuid::new_v4().to_string();
         con.application.port = 0;
+        // Mock server as the email api
+        con.email_client.base_url = email_server.uri();
         con
     };
 
