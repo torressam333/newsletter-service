@@ -87,3 +87,38 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
 
     // Mock asserts on drop
 }
+
+#[tokio::test]
+async fn subscribe_sends_a_confirmation_email_with_a_link() {
+    let app = spawn_app().await;
+    let body = "name=doe%20john&email=john_doe%40gmail.com";
+
+    Mock::given(path_regex(r"^/api/send/\d+"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions(body.into()).await;
+
+    // Grab intercepted requests to verify data from it
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+    // Leverage linkify crate to grab links
+    let get_link = |s: &str| {
+        let links: Vec<_> = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| *l.kind() == linkify::LinkKind::Url)
+            .collect();
+
+        assert_eq!(links.len(), 1);
+
+        links[0].as_str().to_owned()
+    };
+
+    let html_link = get_link(body["HtmlContent"].as_str().unwrap());
+    let text_link = get_link(body["TextContent"].as_str().unwrap());
+
+    assert_eq!(html_link, text_link);
+}

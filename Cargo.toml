@@ -56,6 +56,7 @@ quickcheck_macros = "1"
 rand = "0.8"
 wiremock = "0.6"
 serde_json = "1"
+linkify = "0.10"
 
 [dependencies.sqlx]
 version = "0.8"
