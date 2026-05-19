@@ -28,6 +28,7 @@ pub struct TestApp {
     pub db_pool: PgPool,
     pub http_client: reqwest::Client,
     pub email_server: MockServer,
+    pub port: u16,
 }
 
 impl TestApp {
@@ -65,8 +66,7 @@ pub async fn spawn_app() -> TestApp {
     let application = Application::build(configuration.clone())
         .await
         .expect("Failed to build application instance");
-
-    let address = format!("http://127.0.0.1:{}", application.port());
+    let application_port = application.port();
 
     tokio::spawn(application.run_until_stopped());
 
@@ -76,7 +76,8 @@ pub async fn spawn_app() -> TestApp {
     // 3. TEST POOL: Now it's safe to call get_connection_pool for the test logic
     // because step #1 guaranteed the database and tables are ready.
     TestApp {
-        address,
+        address: format!("http://127.0.0.1:{}", application_port),
+        port: application_port,
         db_pool: get_connection_pool(&configuration.database),
         http_client,
         email_server,
