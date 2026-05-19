@@ -8,6 +8,7 @@ use std::sync::LazyLock;
 use uuid::Uuid;
 use wiremock::MockServer;
 
+// ////////////////////////// TRACING/SPAN LOGIC /////////////////////////////////
 // Ensure tracing stack is only initialized once via LazyLock
 static TRACING: LazyLock<()> = LazyLock::new(|| {
     let default_filter_level = "info".to_string();
@@ -22,6 +23,13 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
         init_subscriber(subscriber);
     }
 });
+
+// ////////////////////////// STRUCTS & IMPL BLOCKS/////////////////////////////////
+/// Conf links embedded ini the request to the email API
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub plain_text: reqwest::Url,
+}
 
 pub struct TestApp {
     pub address: String,
@@ -41,8 +49,40 @@ impl TestApp {
             .await
             .expect("Failed to execute request")
     }
+
+    // Extract email API embedded confirmation links
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+        // Get link from request field
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+
+            assert_eq!(links.len(), 1);
+
+            let raw_link = links[0].as_str().to_owned();
+            let mut confirmation_link = reqwest::Url::parse(&raw_link).unwrap();
+
+            // Make sure we don't call random api's on the web
+            assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
+
+            // Add port to url since tests struggle with dynamic port assignment compared to a prod env
+            confirmation_link.set_port(Some(self.port)).unwrap();
+
+            confirmation_link
+        };
+
+        let html = get_link(&body["HtmlContent"].as_str().unwrap());
+        let plain_text = get_link(body["TextContent"].as_str().unwrap());
+
+        ConfirmationLinks { html, plain_text }
+    }
 }
 
+// ////////////////////////// HELPER FUNCTIONOS /////////////////////////////////
 pub async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
 
