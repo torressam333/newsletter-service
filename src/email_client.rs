@@ -105,10 +105,10 @@ mod tests {
                 dbg!(&body);
                 // Check that all mandatory fields ar populated w/o inspecting
                 body.get("From").is_some()
-                    && body.get("To").is_some()
-                    && body.get("Subject").is_some()
-                    && body.get("HtmlContent").is_some()
-                    && body.get("TextContent").is_some()
+                    & body.get("To").is_some()
+                    & body.get("Subject").is_some()
+                    & body.get("HtmlContent").is_some()
+                    & body.get("TextContent").is_some()
             } else {
                 // Req doesnt match, failed parsing
                 false
